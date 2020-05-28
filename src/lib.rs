@@ -107,6 +107,20 @@ pub struct RssItem{
 ///     Ok(())
 /// }
 /// ```
+///
+/// ### RSS TO Json
+/// ```
+/// use future_rss::RssParser;
+///
+/// #[tokio::main]
+/// async fn main()->Result<(),Box<dyn std::error::Error>> {
+///     let address = "https://www.zhihu.com/rss";
+///     let mut parser = RssParser::from_url(address,"utf8").await?;
+///     parser.author_tag = String::from("dc:creator");
+///     assert!(parser.parse_json().await.is_ok());
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct RssParser{
@@ -132,6 +146,15 @@ impl Default for RssItem{
             publish:String::new()
         }
     }
+}
+
+impl RssItem{
+
+    async fn parse_xml()->Result<String,Box<dyn std::error::Error>>{
+        //todo: Convert XML String
+        Ok(String::new())
+    }
+
 }
 
 
@@ -249,8 +272,20 @@ impl RssParser{
 
     pub async fn parse_json(&mut self)->Result<String,Box<dyn std::error::Error>>{
         let item = self.parse_vec().await?;
-        //todo:convert to json
-        Ok(String::new())
+        let mut json = array![];
+        for node in item.into_iter() {
+            let data = object!{
+                "title": node.title,
+                "link": node.link,
+                "author": node.author,
+                "description": node.description,
+                "guid": node.guid,
+                "publish": node.publish,
+            };
+            json.push(data)?
+        }
+
+        Ok(json.dump())
     }
 
 
@@ -277,8 +312,36 @@ mod tests {
         parser.author_tag = String::from("dc:creator");
         let rss = parser.parse_vec().await?;
         assert!(rss.len()>0);
-        println!("{:?}",rss);
-
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn future_rss_to_json(){
+        let address = "https://www.zhihu.com/rss";
+        let mut parser = RssParser::from_url(address,"utf8").await.unwrap();
+        parser.author_tag = String::from("dc:creator");
+        assert!(parser.parse_json().await.is_ok());
+    }
+
+
+    #[tokio::test]
+    async fn future_rss_builder(){
+        let mut parser = RssParser::new();
+        parser.set_xml(String::from(
+            r#"<?xml version="1.0" encoding="UTF-8" ?>
+                <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+                    <item>
+                        <title>Hey!</title>
+                        <link>examples.com</link>
+                        <description>hello.world!</description>
+                        <author>MeteorCat</author>
+                        <guid>unique key</guid>
+                        <pubDate>2020-05-28 15:00:00</pubDate>
+                    </item>
+                </rss>
+        "#));
+        let rss = parser.parse_vec().await.unwrap();
+        assert!(rss.len()>0);
+
     }
 }
