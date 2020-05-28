@@ -108,7 +108,7 @@ pub struct RssItem{
 /// }
 /// ```
 ///
-/// ### RSS TO Json
+/// ### RSS To Json
 /// ```
 /// use future_rss::RssParser;
 ///
@@ -342,6 +342,5 @@ mod tests {
         "#));
         let rss = parser.parse_vec().await.unwrap();
         assert!(rss.len()>0);
-
     }
 }
