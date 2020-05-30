@@ -42,6 +42,10 @@ pub static RSS_DEFAULT_GUID_TAG:&'static str = "guid";
 /// &lt;pubDate&gt;...&lt;/pubDate&gt;
 pub static RSS_DEFAULT_PUBLISH_TAG:&'static str = "pubDate";
 
+/// Check &lt;xml&gt; and &gt;rss&lt;
+pub static XML_DEFAULT_TAG:&'static str = "xml";
+pub static RSS_DEFAULT_TAG:&'static str = "rss";
+
 ///
 /// Rss Item Node
 ///
@@ -148,17 +152,19 @@ impl Default for RssItem{
     }
 }
 
-impl RssItem{
-
-    async fn parse_xml()->Result<String,Box<dyn std::error::Error>>{
-        //todo: Convert XML String
-        Ok(String::new())
-    }
-
-}
-
 
 impl RssParser{
+
+    pub fn check_xml(&mut self)->bool{
+        //todo: need optimization
+        if !self.xml.contains(XML_DEFAULT_TAG) && !self.xml.contains(&XML_DEFAULT_TAG.to_uppercase()) {
+            return false;
+        }
+        if !self.xml.contains(RSS_DEFAULT_TAG) && !self.xml.contains(&RSS_DEFAULT_TAG.to_uppercase()) {
+            return false;
+        }
+        return true;
+    }
 
     pub fn new()->Self{
         Self{
@@ -175,11 +181,13 @@ impl RssParser{
 
 
     pub async fn from_str(xml:String)->Result<Self,Box<dyn std::error::Error>>{
-        //todo: check xml format
-
         let mut parser = Self::new();
         parser.xml = xml;
-        Ok(parser)
+        if !parser.check_xml() {
+            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+        }else {
+            Ok(parser)
+        }
     }
 
 
@@ -192,7 +200,11 @@ impl RssParser{
 
         let mut parser = Self::new();
         parser.xml = body;
-        Ok(parser)
+        if !parser.check_xml() {
+            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+        }else {
+            Ok(parser)
+        }
     }
 
     pub async fn from_file(filename:&str)->Result<Self,Box<dyn std::error::Error>>{
@@ -202,7 +214,11 @@ impl RssParser{
 
         let mut parser = Self::new();
         parser.xml = body;
-        Ok(parser)
+        if !parser.check_xml() {
+            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+        }else {
+            Ok(parser)
+        }
     }
 
     pub async fn parse_vec(&mut self)->Result<Vec<RssItem>,Box<dyn std::error::Error>>{
