@@ -1,6 +1,6 @@
 [package]
 name = "future_rss"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["MeteorGX <guixin2010@live.cn>"]
 edition = "2018"
 description = "RSS Parser By Future"
