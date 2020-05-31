@@ -166,6 +166,21 @@ impl RssParser{
         return true;
     }
 
+    pub async fn request_xml(&mut self,url:&str,charset:&str)->Result<String,Box<dyn std::error::Error>>{
+        Ok(reqwest::get(url)
+            .await?
+            .text_with_charset(charset)
+            .await?)
+    }
+
+    pub async fn request_file(&mut self,filename:&str)->Result<String,Box<dyn std::error::Error>>{
+        let mut f = File::open(filename)?;
+        let mut body = String::new();
+        f.read_to_string(&mut body)?;
+        Ok(body)
+    }
+
+
     pub fn new()->Self{
         Self{
             xml:String::new(),
@@ -193,12 +208,9 @@ impl RssParser{
 
 
     pub async fn from_url(url:&str,charset:&str)->Result<Self,Box<dyn std::error::Error>>{
-        let body = reqwest::get(url)
-            .await?
-            .text_with_charset(charset)
-            .await?;
-
         let mut parser = Self::new();
+        let body = parser.request_xml(url,charset).await?;
+
         parser.xml = body;
         if !parser.check_xml() {
             Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
@@ -208,11 +220,9 @@ impl RssParser{
     }
 
     pub async fn from_file(filename:&str)->Result<Self,Box<dyn std::error::Error>>{
-        let mut f = File::open(filename)?;
-        let mut body = String::new();
-        f.read_to_string(&mut body)?;
-
         let mut parser = Self::new();
+        let body = parser.request_file(filename).await?;
+
         parser.xml = body;
         if !parser.check_xml() {
             Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))

@@ -60,4 +60,4 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 
 ### Advanced
 
-> todo
+[Examples](https://github.com/MeteorGX/future_rss_examples)
