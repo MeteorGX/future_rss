@@ -125,6 +125,23 @@ pub struct RssItem{
 ///     Ok(())
 /// }
 /// ```
+///
+/// ### Rss Request Buidler
+/// ```
+/// use future_rss::RssParser;
+///
+/// #[tokio::main]
+/// async fn main()->Result<(),Box<dyn std::error::Error>> {
+///     let address = "https://www.zhihu.com/rss";
+///     let mut parser = RssParser::new();
+///     parser.author_tag = "dc:creator".into();
+///     parser.publish_tag = "pubDate".into();
+///     let xml = parser.request_xml(address.as_str(),charset.as_str()).await?;
+///     parser.set_xml(xml);
+///     assert!(parser.parse_vec().await.is_ok());
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct RssParser{
@@ -155,6 +172,9 @@ impl Default for RssItem{
 
 impl RssParser{
 
+    ///
+    /// Todo: Optimization
+    ///
     pub fn check_xml(&mut self)->bool{
         //todo: need optimization
         if !self.xml.contains(XML_DEFAULT_TAG) && !self.xml.contains(&XML_DEFAULT_TAG.to_uppercase()) {
@@ -166,6 +186,10 @@ impl RssParser{
         return true;
     }
 
+
+    ///
+    /// Request Rss by Web
+    ///
     pub async fn request_xml(&mut self,url:&str,charset:&str)->Result<String,Box<dyn std::error::Error>>{
         Ok(reqwest::get(url)
             .await?
@@ -173,6 +197,8 @@ impl RssParser{
             .await?)
     }
 
+    ///
+    /// Request RSS by File
     pub async fn request_file(&mut self,filename:&str)->Result<String,Box<dyn std::error::Error>>{
         let mut f = File::open(filename)?;
         let mut body = String::new();
