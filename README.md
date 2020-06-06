@@ -58,6 +58,24 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 }
 ```
 
+### Rss Request Buidler
+
+```rust
+use future_rss::RssParser;
+
+#[tokio::main]
+async fn main()->Result<(),Box<dyn std::error::Error>> {
+    let address = "https://www.zhihu.com/rss";
+    let mut parser = RssParser::new();
+    parser.author_tag = "dc:creator".into();
+    parser.publish_tag = "pubDate".into();
+    let xml = parser.request_xml(address.as_str(),charset.as_str()).await?;
+    parser.set_xml(xml);
+    assert!(parser.parse_vec().await.is_ok());
+    Ok(())
+}
+```
+
 ### Advanced
 
 [Examples](https://github.com/MeteorGX/future_rss_examples)
