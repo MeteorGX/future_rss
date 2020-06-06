@@ -58,7 +58,7 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 }
 ```
 
-### Rss Request Buidler
+### Rss Request Builder
 
 ```rust
 use future_rss::RssParser;

@@ -126,7 +126,7 @@ pub struct RssItem{
 /// }
 /// ```
 ///
-/// ### Rss Request Buidler
+/// ### Rss Request Builder
 /// ```
 /// use future_rss::RssParser;
 ///
