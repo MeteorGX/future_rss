@@ -133,10 +133,11 @@ pub struct RssItem{
 /// #[tokio::main]
 /// async fn main()->Result<(),Box<dyn std::error::Error>> {
 ///     let address = "https://www.zhihu.com/rss";
+///     let charset = "utf8";
 ///     let mut parser = RssParser::new();
 ///     parser.author_tag = "dc:creator".into();
 ///     parser.publish_tag = "pubDate".into();
-///     let xml = parser.request_xml(address.as_str(),charset.as_str()).await?;
+///     let xml = parser.request_xml(address,charset).await?;
 ///     parser.set_xml(xml);
 ///     assert!(parser.parse_vec().await.is_ok());
 ///     Ok(())
@@ -190,16 +191,16 @@ impl RssParser{
     ///
     /// Request Rss by Web
     ///
-    pub async fn request_xml(&mut self,url:&str,charset:&str)->Result<String,Box<dyn std::error::Error>>{
+    pub async fn request_xml(&mut self,url:&str,charset:&str)->Result<String,std::io::Error>{
         Ok(reqwest::get(url)
-            .await?
+            .await.expect("Failed by Request XML")
             .text_with_charset(charset)
-            .await?)
+            .await.expect("Failed by Request XML"))
     }
 
     ///
     /// Request RSS by File
-    pub async fn request_file(&mut self,filename:&str)->Result<String,Box<dyn std::error::Error>>{
+    pub async fn request_file(&mut self,filename:&str)->Result<String,std::io::Error>{
         let mut f = File::open(filename)?;
         let mut body = String::new();
         f.read_to_string(&mut body)?;
@@ -221,11 +222,11 @@ impl RssParser{
     }
 
 
-    pub async fn from_str(xml:String)->Result<Self,Box<dyn std::error::Error>>{
+    pub async fn from_str(xml:String)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
         parser.xml = xml;
         if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+            Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
         }else {
             Ok(parser)
         }
@@ -233,31 +234,31 @@ impl RssParser{
 
 
 
-    pub async fn from_url(url:&str,charset:&str)->Result<Self,Box<dyn std::error::Error>>{
+    pub async fn from_url(url:&str,charset:&str)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
         let body = parser.request_xml(url,charset).await?;
 
         parser.xml = body;
         if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+            Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
         }else {
             Ok(parser)
         }
     }
 
-    pub async fn from_file(filename:&str)->Result<Self,Box<dyn std::error::Error>>{
+    pub async fn from_file(filename:&str)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
         let body = parser.request_file(filename).await?;
 
         parser.xml = body;
         if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+            Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
         }else {
             Ok(parser)
         }
     }
 
-    pub async fn parse_vec(&mut self)->Result<Vec<RssItem>,Box<dyn std::error::Error>>{
+    pub async fn parse_vec(&mut self)->Result<Vec<RssItem>,std::io::Error>{
         let mut reader = Reader::from_str(self.xml.as_str());
 
         reader.trim_text(true);
@@ -274,7 +275,10 @@ impl RssParser{
             match reader.read_event(&mut buff) {
                 // Fetch = <Item></Item>
                 Ok(Event::Start(ref e)) => {
-                    active = std::str::from_utf8(e.name())?.to_string();
+                    active = std::str::from_utf8(e.name())
+                        .expect("Failed By Parse <Item>")
+                        .to_string();
+
                     if self.node_tag.eq_ignore_ascii_case(&active) {
                         nodes.push(RssItem::default());
                     }
@@ -282,7 +286,9 @@ impl RssParser{
 
                 // Fetch = <Item><Node><CDATA></Node><Item>
                 Ok(Event::CData(ref e)) => {
-                    let node_text = std::str::from_utf8(e.escaped())?;
+                    let node_text = std::str::from_utf8(e.escaped())
+                        .expect("Failed by Parse <CData>");
+
                     if let Some(last) = nodes.last_mut() {
                         match active {
                             _ if self.title_tag.eq_ignore_ascii_case(&active) => { last.title = node_text.to_string() },
@@ -298,7 +304,10 @@ impl RssParser{
 
                 // Fetch = <Item><Node></Node><Item>
                 Ok(Event::Text(ref e)) => {
-                    let node_text = e.unescape_and_decode(&reader)?;
+                    let node_text = e
+                        .unescape_and_decode(&reader)
+                        .expect("Failed by Parse <Node>");
+
                     if let Some(last) = nodes.last_mut() {
                         match active {
                             _ if self.title_tag.eq_ignore_ascii_case(&active) => { last.title = node_text.to_string() },
@@ -313,7 +322,7 @@ impl RssParser{
                 }
 
                 Ok(Event::Eof) => break,
-                Err(e) => return Err(Box::new(e)),
+                Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other,format!("{:?}",e))),
                 _ =>(),
             }
             buff.clear();
@@ -322,7 +331,7 @@ impl RssParser{
         Ok(nodes)
     }
 
-    pub async fn parse_json(&mut self)->Result<String,Box<dyn std::error::Error>>{
+    pub async fn parse_json(&mut self)->Result<String,std::io::Error>{
         let item = self.parse_vec().await?;
         let mut json = array![];
         for node in item.into_iter() {
@@ -334,7 +343,7 @@ impl RssParser{
                 "guid": node.guid,
                 "publish": node.publish,
             };
-            json.push(data)?
+            json.push(data).expect("Failed by Parse Json")
         }
 
         Ok(json.dump())
