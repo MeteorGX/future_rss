@@ -4,12 +4,11 @@
 //! ```
 //! use future_rss::RssParser;
 //!
-//! #[tokio::main]
-//! async fn main()->Result<(),Box<dyn std::error::Error>> {
+//! fn main()->Result<(),Box<dyn std::error::Error>> {
 //!     let address = "https://www.zhihu.com/rss";
-//!     let mut parser = RssParser::from_url(address,"utf8").await?;
+//!     let mut parser = RssParser::from_url(address,"utf8")?;
 //!     parser.author_tag = String::from("dc:creator");
-//!     let rss = parser.parse_vec().await?;
+//!     let rss = parser.parse_vec()?;
 //!     println!("{:?}",rss);
 //!     Ok(())
 //! }
@@ -74,8 +73,7 @@ pub struct RssItem{
 /// ```
 /// use future_rss::RssParser;
 ///
-/// #[tokio::main]
-/// async fn main()->Result<(),Box<dyn std::error::Error>>{
+/// fn main()->Result<(),Box<dyn std::error::Error>>{
 ///     let mut parser_default = RssParser::new();
 ///     println!("{:?}",parser_default);
 ///     parser_default.set_xml(String::from(
@@ -92,7 +90,7 @@ pub struct RssItem{
 ///         </rss>
 ///         "#
 ///     ));
-///     println!("{:?}",parser_default.parse_vec().await?);
+///     println!("{:?}",parser_default.parse_vec()?);
 ///     Ok(())
 /// }
 /// ```
@@ -101,12 +99,11 @@ pub struct RssItem{
 /// ```
 /// use future_rss::RssParser;
 ///
-/// #[tokio::main]
-/// async fn main()->Result<(),Box<dyn std::error::Error>> {
+/// fn main()->Result<(),Box<dyn std::error::Error>> {
 ///     let address = "https://www.zhihu.com/rss";
-///     let mut parser = RssParser::from_url(address,"utf8").await?;
+///     let mut parser = RssParser::from_url(address,"utf8")?;
 ///     parser.author_tag = String::from("dc:creator");
-///     let rss = parser.parse_vec().await?;
+///     let rss = parser.parse_vec()?;
 ///     println!("{:?}",rss);
 ///     Ok(())
 /// }
@@ -116,29 +113,28 @@ pub struct RssItem{
 /// ```
 /// use future_rss::RssParser;
 ///
-/// #[tokio::main]
-/// async fn main()->Result<(),Box<dyn std::error::Error>> {
+/// fn main()->Result<(),Box<dyn std::error::Error>> {
 ///     let address = "https://www.zhihu.com/rss";
-///     let mut parser = RssParser::from_url(address,"utf8").await?;
+///     let mut parser = RssParser::from_url(address,"utf8")?;
 ///     parser.author_tag = String::from("dc:creator");
-///     assert!(parser.parse_json().await.is_ok());
+///     assert!(parser.parse_json().is_ok());
 ///     Ok(())
 /// }
 /// ```
 ///
-/// ### Rss Request Buidler
+/// ### Rss Request Builder
 /// ```
 /// use future_rss::RssParser;
 ///
-/// #[tokio::main]
-/// async fn main()->Result<(),Box<dyn std::error::Error>> {
+/// fn main()->Result<(),Box<dyn std::error::Error>> {
 ///     let address = "https://www.zhihu.com/rss";
+///     let charset = "utf8";
 ///     let mut parser = RssParser::new();
 ///     parser.author_tag = "dc:creator".into();
 ///     parser.publish_tag = "pubDate".into();
-///     let xml = parser.request_xml(address.as_str(),charset.as_str()).await?;
+///     let xml = parser.request_xml(address,charset)?;
 ///     parser.set_xml(xml);
-///     assert!(parser.parse_vec().await.is_ok());
+///     assert!(parser.parse_vec().is_ok());
 ///     Ok(())
 /// }
 /// ```
@@ -190,16 +186,14 @@ impl RssParser{
     ///
     /// Request Rss by Web
     ///
-    pub async fn request_xml(&mut self,url:&str,charset:&str)->Result<String,Box<dyn std::error::Error>>{
-        Ok(reqwest::get(url)
-            .await?
-            .text_with_charset(charset)
-            .await?)
+    pub fn request_xml(&mut self,url:&str,charset:&str)->Result<String,reqwest::Error>{
+        Ok(reqwest::blocking::get(url)?
+            .text_with_charset(charset)?)
     }
 
     ///
     /// Request RSS by File
-    pub async fn request_file(&mut self,filename:&str)->Result<String,Box<dyn std::error::Error>>{
+    pub async fn request_file(&mut self,filename:&str)->Result<String,std::io::Error>{
         let mut f = File::open(filename)?;
         let mut body = String::new();
         f.read_to_string(&mut body)?;
@@ -221,11 +215,14 @@ impl RssParser{
     }
 
 
-    pub async fn from_str(xml:String)->Result<Self,Box<dyn std::error::Error>>{
+    pub fn from_str(xml:String)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
         parser.xml = xml;
         if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Failed by RssParser::check_xml"
+            ))
         }else {
             Ok(parser)
         }
@@ -233,31 +230,34 @@ impl RssParser{
 
 
 
-    pub async fn from_url(url:&str,charset:&str)->Result<Self,Box<dyn std::error::Error>>{
+    pub fn from_url(url:&str,charset:&str)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
-        let body = parser.request_xml(url,charset).await?;
-
-        parser.xml = body;
-        if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
-        }else {
-            Ok(parser)
+        match parser.request_xml(url,charset) {
+            Ok(body) => {
+                parser.xml = body;
+                if !parser.check_xml() {
+                    Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
+                }else {
+                    Ok(parser)
+                }
+            }
+            Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,e.to_string()))
         }
     }
 
-    pub async fn from_file(filename:&str)->Result<Self,Box<dyn std::error::Error>>{
+    pub async fn from_file(filename:&str)->Result<Self,std::io::Error>{
         let mut parser = Self::new();
         let body = parser.request_file(filename).await?;
 
         parser.xml = body;
         if !parser.check_xml() {
-            Err(Box::new(std::io::Error::from(std::io::ErrorKind::InvalidData)))
+            Err(std::io::Error::from(std::io::ErrorKind::InvalidData))
         }else {
             Ok(parser)
         }
     }
 
-    pub async fn parse_vec(&mut self)->Result<Vec<RssItem>,Box<dyn std::error::Error>>{
+    pub fn parse_vec(&mut self)->Result<Vec<RssItem>,std::io::Error>{
         let mut reader = Reader::from_str(self.xml.as_str());
 
         reader.trim_text(true);
@@ -274,7 +274,10 @@ impl RssParser{
             match reader.read_event(&mut buff) {
                 // Fetch = <Item></Item>
                 Ok(Event::Start(ref e)) => {
-                    active = std::str::from_utf8(e.name())?.to_string();
+                    active = std::str::from_utf8(e.name())
+                        .expect("Failed By Parse <Item>")
+                        .to_string();
+
                     if self.node_tag.eq_ignore_ascii_case(&active) {
                         nodes.push(RssItem::default());
                     }
@@ -282,7 +285,9 @@ impl RssParser{
 
                 // Fetch = <Item><Node><CDATA></Node><Item>
                 Ok(Event::CData(ref e)) => {
-                    let node_text = std::str::from_utf8(e.escaped())?;
+                    let node_text = std::str::from_utf8(e.escaped())
+                        .expect("Failed by Parse <CData>");
+
                     if let Some(last) = nodes.last_mut() {
                         match active {
                             _ if self.title_tag.eq_ignore_ascii_case(&active) => { last.title = node_text.to_string() },
@@ -298,7 +303,10 @@ impl RssParser{
 
                 // Fetch = <Item><Node></Node><Item>
                 Ok(Event::Text(ref e)) => {
-                    let node_text = e.unescape_and_decode(&reader)?;
+                    let node_text = e
+                        .unescape_and_decode(&reader)
+                        .expect("Failed by Parse <Node>");
+
                     if let Some(last) = nodes.last_mut() {
                         match active {
                             _ if self.title_tag.eq_ignore_ascii_case(&active) => { last.title = node_text.to_string() },
@@ -313,7 +321,7 @@ impl RssParser{
                 }
 
                 Ok(Event::Eof) => break,
-                Err(e) => return Err(Box::new(e)),
+                Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other,format!("{:?}",e))),
                 _ =>(),
             }
             buff.clear();
@@ -322,8 +330,8 @@ impl RssParser{
         Ok(nodes)
     }
 
-    pub async fn parse_json(&mut self)->Result<String,Box<dyn std::error::Error>>{
-        let item = self.parse_vec().await?;
+    pub fn parse_json(&mut self)->Result<String,std::io::Error>{
+        let item = self.parse_vec()?;
         let mut json = array![];
         for node in item.into_iter() {
             let data = object!{
@@ -334,7 +342,7 @@ impl RssParser{
                 "guid": node.guid,
                 "publish": node.publish,
             };
-            json.push(data)?
+            json.push(data).expect("Failed by Parse Json")
         }
 
         Ok(json.dump())
@@ -357,27 +365,27 @@ impl RssParser{
 mod tests {
     use crate::RssParser;
 
-    #[tokio::test]
-    async fn future_rss_works()->Result<(),Box<dyn std::error::Error>> {
+    #[test]
+    fn future_rss_works()->Result<(),Box<dyn std::error::Error>> {
         let address = "https://www.zhihu.com/rss";
-        let mut parser = RssParser::from_url(address,"utf8").await?;
+        let mut parser = RssParser::from_url(address,"utf8")?;
         parser.author_tag = String::from("dc:creator");
-        let rss = parser.parse_vec().await?;
+        let rss = parser.parse_vec()?;
         assert!(rss.len()>0);
         Ok(())
     }
 
-    #[tokio::test]
-    async fn future_rss_to_json(){
+    #[test]
+    fn future_rss_to_json(){
         let address = "https://www.zhihu.com/rss";
-        let mut parser = RssParser::from_url(address,"utf8").await.unwrap();
+        let mut parser = RssParser::from_url(address,"utf8").unwrap();
         parser.author_tag = String::from("dc:creator");
-        assert!(parser.parse_json().await.is_ok());
+        assert!(parser.parse_json().is_ok());
     }
 
 
-    #[tokio::test]
-    async fn future_rss_builder(){
+    #[test]
+    fn future_rss_builder(){
         let mut parser = RssParser::new();
         parser.set_xml(String::from(
             r#"<?xml version="1.0" encoding="UTF-8" ?>
@@ -392,7 +400,7 @@ mod tests {
                     </item>
                 </rss>
         "#));
-        let rss = parser.parse_vec().await.unwrap();
+        let rss = parser.parse_vec().unwrap();
         assert!(rss.len()>0);
     }
 }
