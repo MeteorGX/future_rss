@@ -5,7 +5,6 @@ Use Rust to Serialize the Rss structure.
 ### Usage
 
 ```toml
-tokio = { version ="*", features = [ "macros","rt-core" ] }
 future_rss = "*"
 ```
 
@@ -16,14 +15,12 @@ future_rss = "*"
 ```rust
 use future_rss::*;
 
-
-#[tokio::main]
-async fn main()->Result<(),Box<dyn std::error::Error>> {
+fn main()->Result<(),Box<dyn std::error::Error>> {
     let address = "https://www.zhihu.com/rss";
-    let mut parser = RssParser::from_url(address,"utf8").await?;
+    let mut parser = RssParser::from_url(address,"utf8")?;
     parser.author_tag = String::from("dc:creator");
     
-    let rss = parser.parse_vec().await?;
+    let rss = parser.parse_vec()?;
     println!("{:?}",rss);    
     Ok(())
 }
@@ -33,12 +30,11 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 ```rust
 use future_rss::RssParser;
 
-#[tokio::main]
-async fn main()->Result<(),Box<dyn std::error::Error>> {
+fn main()->Result<(),Box<dyn std::error::Error>> {
     let address = "https://www.zhihu.com/rss";
-    let mut parser = RssParser::from_url(address,"utf8").await?;
+    let mut parser = RssParser::from_url(address,"utf8")?;
     parser.author_tag = String::from("dc:creator");
-    assert!(parser.parse_json().await.is_ok());
+    assert!(parser.parse_json().is_ok());
     Ok(())
 }
 ```
@@ -48,12 +44,11 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 ```rust
 use future_rss::RssParser;
 
-#[tokio::main]
-async fn main()->Result<(),Box<dyn std::error::Error>> {
+fn main()->Result<(),Box<dyn std::error::Error>> {
     let address = "https://www.zhihu.com/rss";
-    let mut parser = RssParser::from_url(address,"utf8").await?;
+    let mut parser = RssParser::from_url(address,"utf8")?;
     parser.author_tag = String::from("dc:creator");
-    assert!(parser.parse_json().await.is_ok());
+    assert!(parser.parse_json().is_ok());
     Ok(())
 }
 ```
@@ -63,15 +58,14 @@ async fn main()->Result<(),Box<dyn std::error::Error>> {
 ```rust
 use future_rss::RssParser;
 
-#[tokio::main]
-async fn main()->Result<(),Box<dyn std::error::Error>> {
+fn main()->Result<(),Box<dyn std::error::Error>> {
     let address = "https://www.zhihu.com/rss";
     let mut parser = RssParser::new();
     parser.author_tag = "dc:creator".into();
     parser.publish_tag = "pubDate".into();
-    let xml = parser.request_xml(address.as_str(),charset.as_str()).await?;
+    let xml = parser.request_xml(address.as_str(),charset.as_str())?;
     parser.set_xml(xml);
-    assert!(parser.parse_vec().await.is_ok());
+    assert!(parser.parse_vec().is_ok());
     Ok(())
 }
 ```
